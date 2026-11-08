@@ -314,6 +314,12 @@ func buildWebhookRules(cfg config.Configuration, server, name, queryPath string,
 			webhooks = append(webhooks, webhookIgnore)
 		}
 	}
+	// ConfigMap conditions are independent admission filters, not policy
+	// eligibility checks. Apply them after policy conditions have been adapted for
+	// autogen and generation synchronization, so UPDATE filters remain effective.
+	for i := range webhooks {
+		webhooks[i].MatchConditions = mergeWebhookMatchConditions(cfg.GetMatchConditions(), webhooks[i].MatchConditions)
+	}
 	return webhooks
 }
 

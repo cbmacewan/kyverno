@@ -50,6 +50,13 @@ leader-elected = created before/outside that block, so it runs on every replica.
 | `generic/logging` | Generic CRD-change logger — unused since #17710 PR 4 deleted its last caller | n/a (no caller) |
 | `generic/webhook` | Generic webhook-configuration reconciler, reused for cleanup/ttl webhook configs outside `cmd/kyverno` | Yes (from within leader callbacks) |
 
+CEL resource webhooks built by `webhook.buildWebhookRules` also honor the
+ConfigMap's `matchConditions`. These are independent API-server filters: append
+them after adapting policy conditions for autogen and synchronized-generation
+cleanup, without applying the CREATE-only wrapper to the ConfigMap expressions.
+A condition that skips unchanged Node labels must still pass label removal and
+trigger deletion. Duplicate global/policy condition names are combined with AND.
+
 `generic/webhook.NewController` takes a trailing `...Option`. The only option, `WithoutConfigMatchConditions()`,
 stops `build()` from stamping the ConfigMap's `config.matchConditions` onto the webhook configuration; the zero
 value keeps stamping them, so every existing caller is unaffected. Only the two 1.20 legacy-policy-denial
