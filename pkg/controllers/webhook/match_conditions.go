@@ -1,12 +1,34 @@
 package webhook
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/google/cel-go/cel"
 	celast "github.com/google/cel-go/common/ast"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 )
+
+// mergeWebhookMatchConditions preserves both filters when the ConfigMap and a
+// policy use the same condition name. Kubernetes requires unique names, and all
+// conditions are conjunctive, so neither expression may silently replace the other.
+func mergeWebhookMatchConditions(global, policy []admissionregistrationv1.MatchCondition) []admissionregistrationv1.MatchCondition {
+	var conditions []admissionregistrationv1.MatchCondition
+	indexes := make(map[string]int, len(global)+len(policy))
+	for _, source := range [][]admissionregistrationv1.MatchCondition{global, policy} {
+		for _, condition := range source {
+			if i, exists := indexes[condition.Name]; exists {
+				if conditions[i].Expression != condition.Expression {
+					conditions[i].Expression = fmt.Sprintf("(%s) && (%s)", conditions[i].Expression, condition.Expression)
+				}
+				continue
+			}
+			indexes[condition.Name] = len(conditions)
+			conditions = append(conditions, condition)
+		}
+	}
+	return conditions
+}
 
 // namespaceObjectVarName is declared by the API server CEL environment used to
 // compile webhook match conditions, but it is only populated for

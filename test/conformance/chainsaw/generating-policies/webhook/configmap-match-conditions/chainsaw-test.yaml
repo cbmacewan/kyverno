@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kyverno/chainsaw/main/.schemas/json/test-chainsaw-v1alpha1.json
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: generating-policy-configmap-match-conditions
+spec:
+  concurrent: false
+  steps:
+  - name: create-permissions
+    try:
+    - apply:
+        file: permissions.yaml
+  - name: create-policy
+    use:
+      template: ../../../_step-templates/create-policy.yaml
+      with:
+        bindings:
+        - name: file
+          value: policy.yaml
+  - name: wait-for-policy
+    use:
+      template: ../../../_step-templates/generating-policy-ready.yaml
+      with:
+        bindings:
+        - name: name
+          value: gpol-global-match-conditions
+  - name: check-global-filter-and-synchronization
+    try:
+    - script:
+        timeout: 120s
+        content: bash verify-filter.sh

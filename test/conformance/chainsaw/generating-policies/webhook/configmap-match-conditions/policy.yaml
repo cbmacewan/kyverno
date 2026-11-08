@@ -1,0 +1,27 @@
+apiVersion: policies.kyverno.io/v1beta1
+kind: GeneratingPolicy
+metadata:
+  name: gpol-global-match-conditions
+spec:
+  evaluation:
+    synchronize:
+      enabled: true
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: ["v1"]
+      operations: ["CREATE", "UPDATE"]
+      resources: ["namespaces"]
+  matchConditions:
+  - name: trigger-namespace
+    expression: object.metadata.name == 'gpol-global-match-conditions'
+  - name: eligible-label
+    expression: object.metadata.?labels['example.com/color'].orValue('') != ''
+  variables:
+  - name: downstream
+    expression: >-
+      [{"apiVersion": dyn("v1"), "kind": dyn("ConfigMap"),
+        "metadata": dyn({"name": "generated", "namespace": object.metadata.name}),
+        "data": dyn({"color": object.metadata.labels['example.com/color']})}]
+  generate:
+  - expression: generator.apply(object.metadata.name, variables.downstream)
